@@ -8,53 +8,8 @@ This software implements the following standards:
 
 **Updates**:
 - 2023.04, Updates to support of Q.4102Amd1 aligned with Contribution T22-SG11-C-0176, T22-SG11-C-0104
+- 2024.02, Adding PeerAPI for Python integration, removing unnecessary sections and organizing the code.
 
-## Usage
-
-1. Edit client's Configurations in 'clientconfig.json'   
-2. Edit peer's Configurations in 'peerconfig.json'   
-3. Build
-```
-$cd Peer   
-$go mod tidy   
-$go build
-```
-4. Run
-```
-- Usage
-$hp2p.go.peer -h
-
-- Owner peer
-$hp2p.go.peer -c -id peer1 -t title
-
-- Join peer
-$hp2p.go.peer -j -id peer2 -t title
-
-- Peer that does nothing (for use API later)
-$hp2p.go.peer -id peer3
-```
-
-## Live Demo
-You can check the running test server by accessing the following URL:  
-http://144.24.179.237:8081/
-  
-And by setting the following information in clientconfig.json, you can connect to the running server/peer and test it.
-```
-...
-"OVERLAY_SERVER_ADDR" : "http://144.24.179.237:8081",
-"SIGNALING_SERVER_ADDR" : "ws://144.24.179.237:8082",
-...
-```
-  
-Use the following command to connect to the running peer.  
-(xxx is an arbitrary peer ID, excluding peer1, peer2, peer3, and peer4.)
-```
-$hp2p.go.peer -j -id [xxx] -t test_overlay
-```
-Alternatively, you can also create a new overlay to test with the following command.
-```
-$hp2p.go.peer -c -id [xxx] -t [overlay_name]
-```
   
 ## LICENSE
 
