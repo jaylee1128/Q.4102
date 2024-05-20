@@ -1,0 +1,318 @@
+syntax = "proto3";
+
+package hp2pApiProto;
+
+option go_package = "hp2p.pb";
+
+service Hp2pApiProto {
+    rpc Ready(hp2pApiProto.ReadyRequest) returns (hp2pApiProto.ReadyResponse) {}
+    rpc Heartbeat(hp2pApiProto.HeartbeatRequest) returns (hp2pApiProto.HeartbeatResponse) {}
+    rpc SessionChange(hp2pApiProto.SessionChangeRequest) returns (hp2pApiProto.SessionChangeResponse) {}
+    rpc SessionTermination(hp2pApiProto.SessionTerminateRequest) returns (hp2pApiProto.SessionTerminateResponse) {}
+    rpc PeerChange(hp2pApiProto.PeerChangeRequest) returns (hp2pApiProto.PeerChangeResponse) {}
+    rpc Expulsion(hp2pApiProto.ExpulsionRequest) returns (hp2pApiProto.ExpulsionResponse) {}
+    rpc Data(hp2pApiProto.DataRequest) returns (hp2pApiProto.DataResponse) {}
+
+    rpc Homp(stream hp2pApiProto.Response) returns (stream hp2pApiProto.Request) {}
+}
+
+message HeartbeatRequest {
+    int32 dummy = 1;
+}
+
+message HeartbeatResponse {
+    bool response = 1;
+}
+
+message SessionChangeChannel {
+    string channelId = 1;
+    repeated string sourceList = 2;
+}
+
+message SessionChangeRequest {
+    string overlayId = 1;
+    bool titleChanged = 2;
+    string title = 3;
+    bool descriptionChanged = 4;
+    string description = 5;
+    bool ownerIdChanged = 6;
+    string ownerId = 7;
+    bool accessKeyChanged = 8;
+    string accessKey = 9;
+    bool startDateTimeChanged = 10;
+    string startDateTime = 11;
+    bool endDateTimeChanged = 12;
+    string endDateTime = 13;
+    bool sourceListChanged = 14;
+    repeated string sourceList = 15;
+    bool channelSourceChanged = 16;
+    repeated SessionChangeChannel channelList = 17;
+}
+
+message SessionChangeResponse {
+    bool ack = 1;
+}
+
+message SessionTerminateRequest {
+    string overlayId = 1;
+    string peerId = 2;
+}
+
+message SessionTerminateResponse {
+    bool ack = 1;
+}
+
+message PeerChangeRequest {
+    string overlayId = 1;
+    string peerId = 2;
+    string displayName = 3;
+    bool isLeave = 4;
+}
+
+message PeerChangeResponse {
+    bool ack = 1;
+}
+
+message ExpulsionRequest {
+    string overlayId = 1;
+    string peerId = 2;
+}
+
+message ExpulsionResponse {
+    bool ack = 1;
+}
+
+message DataRequest {
+    string overlayId = 1;
+    string dataType = 2;
+    string channelId = 3;
+    string sendPeerId = 4;
+    bytes data = 5;
+}
+
+message DataResponse {
+    bool ack = 1;
+}
+
+message ReadyRequest {
+    string index = 2;
+}
+
+message ReadyResponse {
+    bool isOk = 1;
+}
+
+message ChannelAttributeVideoFeature {
+    string target = 1;
+    string mode = 2;
+    string resolution = 3;
+    string frameRate = 4;
+    string keyPointsType = 5;
+    string modelUri = 6;
+    string hash = 7;
+    string dimension = 8;
+}
+
+message ChannelAttributeAudio {
+    string codec = 1;
+    string sampleRate = 2;
+    string bitrate = 3;
+    string channelType = 4;
+}
+
+message ChannelAttributeText {
+    string format = 1;
+    string encoding = 2;
+}
+
+message Channel {
+    string channelId = 1;
+    string channelType = 2;
+    bool useSourceList = 3;
+    repeated string sourceList = 4;
+    oneof channelAttribute {
+        bool isServiceChannel = 5;
+        ChannelAttributeVideoFeature videoFeature = 6;
+        ChannelAttributeAudio audio = 7;
+        ChannelAttributeText text = 8;
+    }
+}
+
+message PeerIndexResponse {
+    string peerId = 1;
+    string peerIndex = 2;
+}
+
+message CreationRequest {
+    string title = 1;
+    string description = 2;
+    string ownerId = 3;
+    string adminKey = 4;
+    string accessKey = 5;
+    repeated string peerList = 6;
+    bool useBlockList = 7;
+    repeated string blockList = 8;
+    bool useSourceList = 9;
+    repeated string sourceList = 10;
+    string startDateTime = 11;
+    string endDateTime = 12;
+    repeated Channel channelList = 13;
+}
+
+message CreationResponse {
+    int32 rspCode = 1;
+    string overlayId = 2;
+    string startDateTime = 3;
+    string endDateTime = 4;
+}
+
+message QueryRequest {
+    string overlayId = 1;
+    string title = 2;
+    string description = 3;
+}
+
+message QueryResponseOverlay {
+    string overlayId = 1;
+    string title = 2;
+    string description = 3;
+    string ownerId = 4;
+    int32 closed = 5;
+    string startDateTime = 6;
+    string endDateTime = 7;
+    repeated Channel channelList = 8;
+}
+
+message QueryResponse {
+    int32 rspCode = 1;
+    repeated QueryResponseOverlay overlayList = 2;
+}
+
+message JoinRequest {
+    string overlayId = 1;
+    string accessKey = 2;
+    string peerId = 3;
+    string displayName = 4;
+    string privateKeyPath = 5;
+}
+
+message JoinResponse {
+    int32 rspCode = 1;
+    string overlayId = 2;
+    string title = 3;
+    string description = 4;
+    string startDateTime = 5;
+    string endDateTime = 6;
+    repeated string sourceList = 7;
+    repeated Channel channelList = 8;
+}
+
+message ModificationRequest {
+    string overlayId = 1;
+    string ownerId = 2;
+    string adminKey = 3;
+    bool modificationTitle = 4;
+    string title = 5;
+    bool modificationDescription = 6;
+    string description = 7;
+    bool modificationAccessKey = 8;
+    string accessKey = 9;
+    bool modificationPeerList = 10;
+    repeated string peerList = 11;
+    bool modificationBlockList = 12;
+    repeated string blockList = 13;
+    bool modificationSourceList = 14;
+    repeated string sourceList = 15;
+    bool modificationStartDateTime = 16;
+    string startDateTime = 17;
+    bool modificationEndDateTime = 18;
+    string endDateTime = 19;
+    bool modificationChannelList = 20;
+    repeated Channel channelList = 21;
+    bool modificationOwnerId = 22;
+    string newOwnerId = 23;
+    bool modificationAdminKey = 24;
+    string newAdminKey = 25;
+}
+
+message ModificationResponse {
+    int32 rspCode = 1;
+}
+
+message RemovalRequest {
+    string overlayId = 1;
+    string ownerId = 2;
+    string adminKey = 3;
+}
+
+message RemovalResponse {
+    int32 rspCode = 1;
+}
+
+message LeaveRequest {
+    string overlayId = 1;
+    string peerId = 2;
+    string accessKey = 3;
+}
+
+message LeaveResponse {
+    int32 rspCode = 1;
+}
+
+message Peer {
+    string peerId = 1;
+    string displayName = 2;
+}
+
+message SearchPeerRequest {
+    string overlayId = 1;
+}
+
+message SearchPeerResponse {
+    int32 rspCode = 1;
+    repeated Peer peerList = 2;
+}
+
+message SendDataRequest {
+    string dataType = 1; 
+    string channelId = 2;
+    bytes data = 3;
+}
+
+message SendDataResponse {
+    int32 rspCode = 1;
+}
+
+message NotMineResponse {
+    int32 rspCode = 1;
+}
+
+message Request {
+    string id = 1;
+    oneof request {
+        CreationRequest creation = 2;
+        QueryRequest query = 3;
+        JoinRequest join = 4;
+        ModificationRequest modification = 5;
+        RemovalRequest removal = 6;
+        LeaveRequest leave = 7;
+        SearchPeerRequest searchPeer = 8;
+        SendDataRequest sendData = 9;
+    }
+}
+
+message Response {
+    string id = 1;
+    oneof response {
+        CreationResponse creation = 2;
+        QueryResponse query = 3;
+        JoinResponse join = 4;
+        ModificationResponse modification = 5;
+        RemovalResponse removal = 6;
+        LeaveResponse leave = 7;
+        SearchPeerResponse searchPeer = 8;
+        SendDataResponse sendData = 9;
+        NotMineResponse notMine = 10;
+        PeerIndexResponse peerIndex = 11;
+    }
+}

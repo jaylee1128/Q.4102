@@ -33,27 +33,35 @@ from .logger import print, printError, printDebug
 
 class Hp2pServicer(api_pb2_grpc.Hp2pApiProtoServicer):
     notiQueue = None
-    streamQueue = None
     grpcServer = None
     grpcPort = 50051
     serverThread = None
     isStop = False
     isCustomPort = False
+    peers = None
+
+    peerIndexChangeEvent:threading.Event = None
 
     checkPorts = [i for i in range(50051, 50061)]
 
     def __init__(self):
         self.notiQueue = queue.Queue()
-        self.streamQueue = queue.Queue()
         self.grpcServer = None
         self.grpcPort = 50051
         self.serverThread = None
+        self.peerIndexChangeEvent = threading.Event()
+
+    def SetPeerIndexChange(self) -> None:
+        self.peerIndexChangeEvent.set()
+        
+
+    def WaitPeerIndexChange(self) -> None:
+        self.peerIndexChangeEvent.wait()
+        self.peerIndexChangeEvent.clear()
+        
 
     def GetNotiQueue(self) -> queue.Queue:
         return self.notiQueue
-    
-    def GetStreamQueue(self) -> queue.Queue:
-        return self.streamQueue
     
     def SetGrpcPort(self, port: int) -> None:
         self.grpcPort = port
@@ -74,8 +82,7 @@ class Hp2pServicer(api_pb2_grpc.Hp2pApiProtoServicer):
         print("Python gRPC Server is running on port " + str(self.grpcPort))
         self.grpcServer.wait_for_termination()
 
-    def GrpcStart(self) -> bool:
-
+    def GrpcStart(self, peers : dict) -> bool:
         if self.isCustomPort:
             if not self.check_port(self.grpcPort):
                 printError(f"GrpcServer start fail. Port {self.grpcPort} is already in use.")
@@ -91,6 +98,8 @@ class Hp2pServicer(api_pb2_grpc.Hp2pApiProtoServicer):
 
         self.serverThread = threading.Thread(target=self.serverRun)
         self.serverThread.start()
+
+        self.peers = peers
 
         return True
 
@@ -114,7 +123,7 @@ class Hp2pServicer(api_pb2_grpc.Hp2pApiProtoServicer):
 
     def Ready(self, request, context):
         printDebug(f"GRPC has received : Ready, {request}")
-        self.notiQueue.put({"type": GrpcMsgType.Ready, "index": request.index})
+        self.notiQueue.put({"type": GrpcMsgType.Ready, "index": request.index, "context": context})
 
         return api_pb2.ReadyResponse(
             isOk=True,
@@ -171,30 +180,65 @@ class Hp2pServicer(api_pb2_grpc.Hp2pApiProtoServicer):
             return GrpcMsgType.SendData
         elif response.HasField("searchPeer"):
             return GrpcMsgType.SearchPeer
+        elif response.HasField("notMine"):
+            return GrpcMsgType.NotMine
         else:
             return None
-    
+
     def Homp(self, request_iterator, context):
+        try:
+            for response in request_iterator:
+                if self.isStop:
+                    break
+                if response.HasField("peerIndex"):
+                    peerIndexRes = response.peerIndex
+                    peerIndex = peerIndexRes.peerIndex
+                    peerId = peerIndexRes.peerId
+
+                    if peerIndex in self.peers:
+                        peer = self.peers[peerIndex]
+
+                        while context.is_active() and not self.isStop:
+                            try: 
+                                msg = peer.streamQueue.get(timeout=1)
+                                printDebug(f"Request: {msg['type']}")
+                                printDebug(msg["data"])
+                                
+                                yield msg["data"]
+                                break
+                            except queue.Empty:
+                                continue
+                            except Exception as e:
+                                printError(f"!!!!!!!!!!!!!!!!!!!! Homp error: {e}")
+                    else:
+                        printError(f"!!!!!!!!!!!! Peer {peerIndex} is not exist !!!!!!!!!!!!!!!!")
+                else:
+                    self.notiQueue.put({"type": self.getGrpcMsgType(response), "data": response})
+                    if response.HasField("creation") or response.HasField("join"):
+                        self.WaitPeerIndexChange()
+                        printDebug("Detect PeerIndexChange")
+
+        except Exception as e:
+            if context.is_active():
+                printError(f"!!!!!!!!!!!!!!!!!!!!!! Homp error: {e}")
+
+        '''
         while context.is_active() and not self.isStop:
             try:
                 msg = self.streamQueue.get(timeout=1)
-                # if msg["type"] == GrpcMsgType.Creation:
-                #     print("Creation request")
-                #     print(msg)
-                #     yield msg["data"]
-                #     response = next(request_iterator)
-                #     print("Creation response")
-                #     print(response)
-                #     self.notiQueue.put({"type": GrpcMsgType.Creation, "data": response})
                 printDebug(f"Request: {msg['type']}")
                 printDebug(msg["data"])
                 yield msg["data"]
+
                 response = next(request_iterator)
                 printDebug(f"Response: {response}")
                 self.notiQueue.put({"type": self.getGrpcMsgType(response), "data": response})
+                ##aaa = next(request_iterator)
+                
             except queue.Empty:
                 continue
             except Exception as e:
                 if e:
                     printError(f"Homp error: {e}")
                 continue
+        '''

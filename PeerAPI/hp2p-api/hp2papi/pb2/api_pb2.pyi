@@ -207,6 +207,14 @@ class Channel(_message.Message):
     text: ChannelAttributeText
     def __init__(self, channelId: _Optional[str] = ..., channelType: _Optional[str] = ..., useSourceList: bool = ..., sourceList: _Optional[_Iterable[str]] = ..., isServiceChannel: bool = ..., videoFeature: _Optional[_Union[ChannelAttributeVideoFeature, _Mapping]] = ..., audio: _Optional[_Union[ChannelAttributeAudio, _Mapping]] = ..., text: _Optional[_Union[ChannelAttributeText, _Mapping]] = ...) -> None: ...
 
+class PeerIndexResponse(_message.Message):
+    __slots__ = ["peerId", "peerIndex"]
+    PEERID_FIELD_NUMBER: _ClassVar[int]
+    PEERINDEX_FIELD_NUMBER: _ClassVar[int]
+    peerId: str
+    peerIndex: str
+    def __init__(self, peerId: _Optional[str] = ..., peerIndex: _Optional[str] = ...) -> None: ...
+
 class CreationRequest(_message.Message):
     __slots__ = ["title", "description", "ownerId", "adminKey", "accessKey", "peerList", "useBlockList", "blockList", "useSourceList", "sourceList", "startDateTime", "endDateTime", "channelList"]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -302,20 +310,24 @@ class JoinRequest(_message.Message):
     def __init__(self, overlayId: _Optional[str] = ..., accessKey: _Optional[str] = ..., peerId: _Optional[str] = ..., displayName: _Optional[str] = ..., privateKeyPath: _Optional[str] = ...) -> None: ...
 
 class JoinResponse(_message.Message):
-    __slots__ = ["rspCode", "overlayId", "startDateTime", "endDateTime", "sourceList", "channelList"]
+    __slots__ = ["rspCode", "overlayId", "title", "description", "startDateTime", "endDateTime", "sourceList", "channelList"]
     RSPCODE_FIELD_NUMBER: _ClassVar[int]
     OVERLAYID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STARTDATETIME_FIELD_NUMBER: _ClassVar[int]
     ENDDATETIME_FIELD_NUMBER: _ClassVar[int]
     SOURCELIST_FIELD_NUMBER: _ClassVar[int]
     CHANNELLIST_FIELD_NUMBER: _ClassVar[int]
     rspCode: int
     overlayId: str
+    title: str
+    description: str
     startDateTime: str
     endDateTime: str
     sourceList: _containers.RepeatedScalarFieldContainer[str]
     channelList: _containers.RepeatedCompositeFieldContainer[Channel]
-    def __init__(self, rspCode: _Optional[int] = ..., overlayId: _Optional[str] = ..., startDateTime: _Optional[str] = ..., endDateTime: _Optional[str] = ..., sourceList: _Optional[_Iterable[str]] = ..., channelList: _Optional[_Iterable[_Union[Channel, _Mapping]]] = ...) -> None: ...
+    def __init__(self, rspCode: _Optional[int] = ..., overlayId: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., startDateTime: _Optional[str] = ..., endDateTime: _Optional[str] = ..., sourceList: _Optional[_Iterable[str]] = ..., channelList: _Optional[_Iterable[_Union[Channel, _Mapping]]] = ...) -> None: ...
 
 class ModificationRequest(_message.Message):
     __slots__ = ["overlayId", "ownerId", "adminKey", "modificationTitle", "title", "modificationDescription", "description", "modificationAccessKey", "accessKey", "modificationPeerList", "peerList", "modificationBlockList", "blockList", "modificationSourceList", "sourceList", "modificationStartDateTime", "startDateTime", "modificationEndDateTime", "endDateTime", "modificationChannelList", "channelList", "modificationOwnerId", "newOwnerId", "modificationAdminKey", "newAdminKey"]
@@ -447,6 +459,12 @@ class SendDataResponse(_message.Message):
     rspCode: int
     def __init__(self, rspCode: _Optional[int] = ...) -> None: ...
 
+class NotMineResponse(_message.Message):
+    __slots__ = ["rspCode"]
+    RSPCODE_FIELD_NUMBER: _ClassVar[int]
+    rspCode: int
+    def __init__(self, rspCode: _Optional[int] = ...) -> None: ...
+
 class Request(_message.Message):
     __slots__ = ["id", "creation", "query", "join", "modification", "removal", "leave", "searchPeer", "sendData"]
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -470,7 +488,7 @@ class Request(_message.Message):
     def __init__(self, id: _Optional[str] = ..., creation: _Optional[_Union[CreationRequest, _Mapping]] = ..., query: _Optional[_Union[QueryRequest, _Mapping]] = ..., join: _Optional[_Union[JoinRequest, _Mapping]] = ..., modification: _Optional[_Union[ModificationRequest, _Mapping]] = ..., removal: _Optional[_Union[RemovalRequest, _Mapping]] = ..., leave: _Optional[_Union[LeaveRequest, _Mapping]] = ..., searchPeer: _Optional[_Union[SearchPeerRequest, _Mapping]] = ..., sendData: _Optional[_Union[SendDataRequest, _Mapping]] = ...) -> None: ...
 
 class Response(_message.Message):
-    __slots__ = ["id", "creation", "query", "join", "modification", "removal", "leave", "searchPeer", "sendData"]
+    __slots__ = ["id", "creation", "query", "join", "modification", "removal", "leave", "searchPeer", "sendData", "notMine", "peerIndex"]
     ID_FIELD_NUMBER: _ClassVar[int]
     CREATION_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
@@ -480,6 +498,8 @@ class Response(_message.Message):
     LEAVE_FIELD_NUMBER: _ClassVar[int]
     SEARCHPEER_FIELD_NUMBER: _ClassVar[int]
     SENDDATA_FIELD_NUMBER: _ClassVar[int]
+    NOTMINE_FIELD_NUMBER: _ClassVar[int]
+    PEERINDEX_FIELD_NUMBER: _ClassVar[int]
     id: str
     creation: CreationResponse
     query: QueryResponse
@@ -489,4 +509,6 @@ class Response(_message.Message):
     leave: LeaveResponse
     searchPeer: SearchPeerResponse
     sendData: SendDataResponse
-    def __init__(self, id: _Optional[str] = ..., creation: _Optional[_Union[CreationResponse, _Mapping]] = ..., query: _Optional[_Union[QueryResponse, _Mapping]] = ..., join: _Optional[_Union[JoinResponse, _Mapping]] = ..., modification: _Optional[_Union[ModificationResponse, _Mapping]] = ..., removal: _Optional[_Union[RemovalResponse, _Mapping]] = ..., leave: _Optional[_Union[LeaveResponse, _Mapping]] = ..., searchPeer: _Optional[_Union[SearchPeerResponse, _Mapping]] = ..., sendData: _Optional[_Union[SendDataResponse, _Mapping]] = ...) -> None: ...
+    notMine: NotMineResponse
+    peerIndex: PeerIndexResponse
+    def __init__(self, id: _Optional[str] = ..., creation: _Optional[_Union[CreationResponse, _Mapping]] = ..., query: _Optional[_Union[QueryResponse, _Mapping]] = ..., join: _Optional[_Union[JoinResponse, _Mapping]] = ..., modification: _Optional[_Union[ModificationResponse, _Mapping]] = ..., removal: _Optional[_Union[RemovalResponse, _Mapping]] = ..., leave: _Optional[_Union[LeaveResponse, _Mapping]] = ..., searchPeer: _Optional[_Union[SearchPeerResponse, _Mapping]] = ..., sendData: _Optional[_Union[SendDataResponse, _Mapping]] = ..., notMine: _Optional[_Union[NotMineResponse, _Mapping]] = ..., peerIndex: _Optional[_Union[PeerIndexResponse, _Mapping]] = ...) -> None: ...

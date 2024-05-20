@@ -29,6 +29,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -101,7 +102,11 @@ func Printf(level int, format string, v ...interface{}) {
 
 func Println(level int, v ...interface{}) {
 	if level <= LEVEL {
-		getLevelLogger(level).Println(v...)
+		pid := os.Getpid()
+		pidStr := strconv.Itoa(pid)
+		msg := []interface{}{"[" + pidStr + "]"}
+		msg = append(msg, v...)
+		getLevelLogger(level).Println(msg...)
 	}
 }
 

@@ -62,7 +62,7 @@ class PeerCollection:
         self.__servicer.SetGrpcPort(port)
 
     def GrpcStart(self) -> bool:
-        if not self.__servicer.GrpcStart():
+        if not self.__servicer.GrpcStart(self.__peers):
             return False
         
         self.__notiThread = threading.Thread(target=self.__notiWorker)
@@ -129,13 +129,15 @@ class PeerCollection:
         tempId = str(self.__readyPeerIdx)
         self.__readyPeerIdx += 1
 
+        self.__peers[tempId] = peer
+
         if not peer.PeerStart(self.__servicer.GetGrpcPort(), tempId, self.__peerOption):
             printError("PeerCollection NewPeerStart fail.")
+            del self.__peers[tempId]
             return None
         
         printDebug("PeerCollection Connect")
-        self.__peers[tempId] = peer
-
+        
         peer.WaitReady()
         
         if not peer.IsConnect():
@@ -264,7 +266,7 @@ class PeerCollection:
             creation=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.Creation, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.Creation, "data": reqWithId})
 
         peer.WaitCreation()
 
@@ -276,6 +278,8 @@ class PeerCollection:
         if resp.code == ResponseCode.Success:
             del self.__peers[pid]
             self.__peers[resp.overlayId] = peer
+
+        self.__servicer.SetPeerIndexChange()
 
         return resp
     
@@ -308,7 +312,7 @@ class PeerCollection:
             query=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.Query, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.Query, "data": reqWithId})
 
         peer.WaitQuery()
 
@@ -355,7 +359,7 @@ class PeerCollection:
             join=request
         )
         
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.Join, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.Join, "data": reqWithId})
 
         peer.WaitJoin()
 
@@ -368,6 +372,8 @@ class PeerCollection:
         else:
             peer.PeerStop()
             del self.__peers[pid]
+
+        self.__servicer.SetPeerIndexChange()
 
         return resp
     
@@ -468,7 +474,7 @@ class PeerCollection:
             modification=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.Modification, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.Modification, "data": reqWithId})
 
         peer.WaitModification()
 
@@ -510,7 +516,7 @@ class PeerCollection:
             removal=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.Removal, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.Removal, "data": reqWithId})
 
         peer.WaitRemoval()
 
@@ -552,7 +558,7 @@ class PeerCollection:
             sendData=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.SendData, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.SendData, "data": reqWithId})
 
         peer.WaitSendData()
 
@@ -583,12 +589,12 @@ class PeerCollection:
         peer.SetRemovalResponse(req.removal)
     
     def Leave(self, req: LeaveRequest) -> Response:
-        printDebug("PeerCollection Removal")
+        printDebug("PeerCollection Leave")
 
         pid = req.overlayId
         peer = self.getPeer(pid)
         if not peer:
-            printError("PeerCollection Removal fail. peer not found.")
+            printError("PeerCollection Leave fail. peer not found.")
             return Response(code=ResponseCode.Fail)
 
         request:api_pb2.Leave = api_pb2.LeaveRequest(
@@ -602,7 +608,7 @@ class PeerCollection:
             leave=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.Leave, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.Leave, "data": reqWithId})
 
         peer.WaitLeave()
 
@@ -643,7 +649,7 @@ class PeerCollection:
             searchPeer=request
         )
 
-        self.__servicer.GetStreamQueue().put({"type": GrpcMsgType.SearchPeer, "data": reqWithId})
+        peer.GetStreamQueue().put({"type": GrpcMsgType.SearchPeer, "data": reqWithId})
 
         peer.WaitSearchPeer()
 

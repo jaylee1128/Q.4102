@@ -22,18 +22,20 @@ type PbClient struct {
 	isClosed    bool
 
 	peerIndex string
+	peerId    string
 
 	recvChan chan interface{}
 	sendChan chan interface{}
 }
 
-func NewPbClient(serverPort int, peerIndex string) *PbClient {
+func NewPbClient(serverPort int, peerIndex string, peerId string) *PbClient {
 	client := new(PbClient)
 	client.ServerPort = serverPort
 	client.clientConn = nil
 	client.protoClient = nil
 	client.isClosed = false
 	client.peerIndex = peerIndex
+	client.peerId = peerId
 
 	client.recvChan = make(chan interface{})
 	client.sendChan = make(chan interface{})
@@ -83,7 +85,21 @@ func (client *PbClient) getProtoClient() *Hp2PApiProtoClient {
 	return &client.protoClient
 }
 
+func (client *PbClient) SendPeerIndex(pstream *Hp2PApiProto_HompClient) {
+	stream := *pstream
+
+	resWithId := Response{}
+	resWithId.Id = client.peerIndex
+	res := Response_PeerIndex{PeerIndex: &PeerIndexResponse{PeerIndex: client.peerIndex, PeerId: client.peerId}}
+
+	resWithId.Response = &res
+	//util.PrintJson(util.ERROR, "!!!!!!!!!!!!!!! SendPeerIndex: ", resWithId)
+	stream.Send(&resWithId)
+}
+
 func (client *PbClient) SendResponse(pstream *Hp2PApiProto_HompClient) {
+	client.SendPeerIndex(pstream)
+
 	stream := *pstream
 	for !client.isClosed {
 		select {
@@ -135,6 +151,7 @@ func (client *PbClient) SendResponse(pstream *Hp2PApiProto_HompClient) {
 			}
 
 			stream.Send(&resWithId)
+			client.SendPeerIndex(pstream)
 
 			//default:
 			//	continue
@@ -171,8 +188,16 @@ func (client *PbClient) RecvRequest() {
 
 			id := request.GetId()
 			if id != client.peerIndex {
-				util.Println(util.ERROR, "Received request is not for me: ", id)
+				util.Println(util.ERROR, "Received request is not for me: ", id+", me:"+client.peerIndex)
+
+				// TODO : send error response
+				notMineResponse := Response_NotMine{
+					NotMine: &NotMineResponse{RspCode: util.RspCode_Failed},
+				}
+
+				stream.Send(&Response{Id: client.peerIndex, Response: &notMineResponse})
 				continue
+				//return
 			}
 
 			if request.GetCreation() != nil {
@@ -418,6 +443,7 @@ func (client *PbClient) PeerChange(overlayId string, peerId string, displayName 
 		util.Println(util.ERROR, "Peer Change Response is FALSE")
 	}
 
+	util.Println(util.WORK, "pbclinet - Send Peer Change ")
 	return r.Ack
 }
 

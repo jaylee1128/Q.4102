@@ -223,7 +223,9 @@ func (self *Peer) newPeerConnection(createDataChannel bool) {
 			self.setLocalTrack(tr, r)
 		})
 
-		dataChannel, err := self.peerConnection.CreateDataChannel("data", nil)
+		ordered := true
+		dataChannelOptions := &pwebrtc.DataChannelInit{Ordered: &ordered}
+		dataChannel, err := self.peerConnection.CreateDataChannel("data", dataChannelOptions)
 		if err != nil {
 			panic(err)
 		}
@@ -421,7 +423,7 @@ func (self *Peer) OnDataChannelMessage(msg pwebrtc.DataChannelMessage) {
 		case util.ReqCode_BroadcastData:
 			header := util.BroadcastData{}
 			json.Unmarshal(msg.Data[4:length+4], &header)
-			go self.recvBroadcastData(&header, msg.Data[length+4:])
+			self.recvBroadcastData(&header, msg.Data[length+4:]) // TODO go 삭제
 
 		case util.ReqCode_Release:
 			header := util.ReleasePeer{}
@@ -1007,6 +1009,7 @@ func (self *Peer) setPrimary() bool {
 
 		extHeader := hres.ExtensionHeader
 
+		util.Println(util.WORK, self.ToPeerId, "Primary response check join peers")
 		self.checkJoinPeers(extHeader.Peers, hres.Payload)
 
 		self.sendJoinNoti()
@@ -1048,7 +1051,7 @@ func (self *Peer) sendJoinNoti() {
 	extHeader.ChannelId = self.ConnectObj.ControlChannelId
 	extHeader.MediaType = util.MediaTypeControl
 	extHeader.ControlType = util.ControlTypeJoin
-	extHeader.JoinerInfo.PeerId = self.Info.PeerOriginId()
+	extHeader.JoinerInfo.PeerId = self.Info.PeerId()
 	extHeader.JoinerInfo.DisplayName = *self.Info.PeerInfo.DisplayName
 	extHeader.JoinerInfo.PublicKey = self.Info.GetPublicKeyString()
 
@@ -1062,6 +1065,7 @@ func (self *Peer) sendJoinNoti() {
 }
 
 func (self *Peer) checkJoinPeers(peers []util.PrimaryPeerResponseExtensionHeaderPeers, payload []byte) {
+	util.PrintJson(util.WORK, "checkJoinPeers", peers)
 	if peers != nil && len(peers) > 0 {
 		self.ConnectObj.JoinPeerMux.Lock()
 
@@ -1074,10 +1078,16 @@ func (self *Peer) checkJoinPeers(peers []util.PrimaryPeerResponseExtensionHeader
 			if _, ok := joinPeers[peer.PeerId]; !ok {
 				joinPeers[peer.PeerId] = &util.JoinPeerInfo{}
 				joinPeers[peer.PeerId].PublicKey = nil
-				joinPeersForNoti = append(joinPeersForNoti, joinPeers[peer.PeerId])
 			}
 			joinPeers[peer.PeerId].PeerId = peer.PeerId
 			joinPeers[peer.PeerId].DisplayName = peer.DisplayName
+
+			if !joinPeers[peer.PeerId].NotiToApp {
+				joinPeersForNoti = append(joinPeersForNoti, joinPeers[peer.PeerId])
+				joinPeers[peer.PeerId].NotiToApp = true
+			}
+
+			util.PrintJson(util.WORK, "joinPeersForNoti", joinPeersForNoti)
 
 			if peer.PublicKey && joinPeers[peer.PeerId].PublicKey == nil {
 				joinPeers[peer.PeerId].PublicKeyPEM = payload[pos : pos+459]
@@ -1122,7 +1132,7 @@ func (self *Peer) checkJoinPeers(peers []util.PrimaryPeerResponseExtensionHeader
 
 		for _, peer := range joinPeersForNoti {
 			if self.ConnectObj.PeerChangeCallback != nil {
-				util.Println(util.INFO, self.ToPeerId, "PeerChangeCallback !!!!!!!!!!!!!")
+				util.Println(util.WORK, self.ToPeerId, "PeerChangeCallback !!!!!!!!!!!!!", peer.PeerId)
 				self.ConnectObj.PeerChangeCallback(self.Info.OverlayInfo.OverlayId, peer.PeerId, peer.DisplayName, false)
 			}
 		}
@@ -1523,7 +1533,7 @@ func (self *Peer) recvBroadcastData(req *util.BroadcastData, data []byte) {
 				joinExtHeader := util.BroadcastDataExtensionHeaderControlJoin{}
 				json.Unmarshal(extbuf, &joinExtHeader)
 
-				if joinExtHeader.JoinerInfo.PeerId == self.Info.PeerOriginId() {
+				if joinExtHeader.JoinerInfo.PeerId == self.Info.PeerId() {
 					return
 				}
 
@@ -1540,7 +1550,7 @@ func (self *Peer) recvBroadcastData(req *util.BroadcastData, data []byte) {
 				leaveExtHeader := util.BroadcastDataExtensionHeaderControlLeave{}
 				json.Unmarshal(extbuf, &leaveExtHeader)
 
-				if leaveExtHeader.LeaverInfo.PeerId == self.Info.PeerOriginId() {
+				if leaveExtHeader.LeaverInfo.PeerId == self.Info.PeerId() {
 					return
 				}
 
@@ -1636,7 +1646,7 @@ func (self *Peer) recvBroadcastData(req *util.BroadcastData, data []byte) {
 				return
 			}
 
-			self.ConnectObj.NotiData(self.Info.OverlayInfo.OverlayId, dataExtHeader.ChannelId, self.ConnectObj.GetOriginId(params.Peer.PeerId), dataExtHeader.MediaType, &data)
+			self.ConnectObj.NotiData(self.Info.OverlayInfo.OverlayId, dataExtHeader.ChannelId, params.Peer.PeerId, dataExtHeader.MediaType, &data)
 
 			go self.ConnectObj.BroadcastData(&params, &dataExtHeader, &payload, params.Peer.PeerId, false, true)
 		} else if baseExtHeader.MediaType == util.MediaTypeDataCache {
@@ -1657,12 +1667,12 @@ func (self *Peer) recvBroadcastData(req *util.BroadcastData, data []byte) {
 				return
 			}
 
-			originId := self.ConnectObj.GetOriginId(dataExtHeader.SourceId)
+			//originId := self.ConnectObj.GetOriginId(dataExtHeader.SourceId)
 
-			needNoti := self.ConnectObj.CachingMedia(&dataExtHeader, &data, &signed, originId)
+			needNoti := self.ConnectObj.CachingMedia(&dataExtHeader, &data, &signed, dataExtHeader.SourceId)
 
 			if needNoti {
-				self.ConnectObj.NotiData(self.Info.OverlayInfo.OverlayId, dataExtHeader.ChannelId, originId, dataExtHeader.MediaType, &data)
+				self.ConnectObj.NotiData(self.Info.OverlayInfo.OverlayId, dataExtHeader.ChannelId, dataExtHeader.SourceId, dataExtHeader.MediaType, &data)
 			}
 
 			go self.ConnectObj.BroadcastData(&params, &dataExtHeader, &payload, params.Peer.PeerId, false, true)
@@ -1706,7 +1716,7 @@ func (self *Peer) checkJoinPeer(joinPeer *util.BroadcastDataExtensionHeaderContr
 		}
 
 		if self.ConnectObj.PeerChangeCallback != nil {
-			util.Println(util.INFO, self.ToPeerId, "PeerChangeCallback - Join !!!!!!!!!!!!!", joinPeers[joinPeer.PeerId])
+			util.Println(util.WORK, self.ToPeerId, "PeerChangeCallback - Join !!!!!!!!!!!!!", joinPeers[joinPeer.PeerId])
 			self.ConnectObj.PeerChangeCallback(self.Info.OverlayInfo.OverlayId, joinPeer.PeerId, joinPeer.DisplayName, false)
 		}
 	} else {
@@ -1717,6 +1727,14 @@ func (self *Peer) checkJoinPeer(joinPeer *util.BroadcastDataExtensionHeaderContr
 				oldPeer.PublicKeyPEM = []byte{}
 			} else {
 				oldPeer.PublicKeyPEM = []byte(joinPeer.PublicKey)
+			}
+		}
+
+		if !oldPeer.NotiToApp {
+			if self.ConnectObj.PeerChangeCallback != nil {
+				util.Println(util.WORK, self.ToPeerId, "PeerChangeCallback - Join !!!!!!!!!!!!!", oldPeer)
+				self.ConnectObj.PeerChangeCallback(self.Info.OverlayInfo.OverlayId, oldPeer.PeerId, oldPeer.DisplayName, false)
+				oldPeer.NotiToApp = true
 			}
 		}
 	}
@@ -1732,7 +1750,7 @@ func (self *Peer) leaveJoinPeer(leavePeer *util.BroadcastDataExtensionHeaderCont
 	}
 
 	if self.ConnectObj.PeerChangeCallback != nil {
-		util.Println(util.INFO, self.ToPeerId, "PeerChangeCallback - Leave !!!!!!!!!!!!!", leavePeer)
+		util.Println(util.WORK, self.ToPeerId, "PeerChangeCallback - Leave !!!!!!!!!!!!!", leavePeer)
 		self.ConnectObj.PeerChangeCallback(self.Info.OverlayInfo.OverlayId, leavePeer.PeerId, leavePeer.DisplayName, true)
 	}
 }
@@ -1956,9 +1974,9 @@ func (self *Peer) recvGetDataResponse(res *util.GetDataResponse, content []byte)
 	sign := payload[len(payload)-256:]
 	media := payload[:len(payload)-256]
 
-	originId := self.ConnectObj.GetOriginId(params.Peer.PeerId)
+	//originId := self.ConnectObj.GetOriginId(params.Peer.PeerId)
 
-	publicKey := self.ConnectObj.GetJoinPeerPublicKey(originId)
+	publicKey := self.ConnectObj.GetJoinPeerPublicKey(params.Peer.PeerId)
 
 	if !self.verifyData(&media, &sign, publicKey) {
 		return
@@ -1973,11 +1991,11 @@ func (self *Peer) recvGetDataResponse(res *util.GetDataResponse, content []byte)
 	needNoti := true
 
 	if extHeader.MediaType == util.MediaTypeDataCache {
-		needNoti = self.ConnectObj.CachingMedia(&broadHeader, &media, &sign, originId)
+		needNoti = self.ConnectObj.CachingMedia(&broadHeader, &media, &sign, params.Peer.PeerId)
 	}
 
 	if needNoti {
-		self.ConnectObj.NotiData(self.Info.OverlayInfo.OverlayId, extHeader.ChannelId, originId, extHeader.MediaType, &media)
+		self.ConnectObj.NotiData(self.Info.OverlayInfo.OverlayId, extHeader.ChannelId, params.Peer.PeerId, extHeader.MediaType, &media)
 	}
 
 	broadParams := util.BroadcastDataParams{}

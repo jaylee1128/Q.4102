@@ -390,6 +390,7 @@ type JoinPeerInfo struct {
 	PublicKeyPEM []byte `json:"public-key"`
 	PublicKey    *rsa.PublicKey
 	CachingMedia []JoinPeerInfoCachingMedia `json:"caching-media"`
+	NotiToApp    bool                       `json:"noti-to-app"`
 }
 
 type JoinPeerInfoCachingMedia struct {

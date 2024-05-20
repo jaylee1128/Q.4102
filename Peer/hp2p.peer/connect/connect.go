@@ -173,7 +173,7 @@ type Connect interface {
 	SetPrivateKey(privateKey *rsa.PrivateKey) bool
 	SetPrivateKeyFromFile(privateKeyPath string) bool
 	GetPublicKeyString() string
-	GetJoinPeerPublicKey(peerOriginId string) *rsa.PublicKey
+	GetJoinPeerPublicKey(peerId string) *rsa.PublicKey
 	ParsePublicKey(keystring string) *rsa.PublicKey
 	SignStruct(origin interface{}) []byte
 	SignData(origin []byte) []byte
@@ -768,15 +768,17 @@ func (conn *Common) OverlayJoinBy(hoj *util.HybridOverlayJoin, recovery bool) *u
 
 		conn.JoinPeerMux.Lock()
 
-		if joinpeer, ok := conn.joinPeerMap[conn.peerOriginId]; !ok {
-			conn.joinPeerMap[conn.peerOriginId] = &util.JoinPeerInfo{}
-			conn.joinPeerMap[conn.peerOriginId].PeerId = conn.PeerOriginId()
-			conn.joinPeerMap[conn.peerOriginId].DisplayName = *conn.PeerInfo.DisplayName
-			conn.joinPeerMap[conn.peerOriginId].PublicKeyPEM = conn.publicKeyPEM
-			conn.joinPeerMap[conn.peerOriginId].PublicKey = nil
-			conn.joinPeerMap[conn.peerOriginId].CachingMedia = make([]util.JoinPeerInfoCachingMedia, 0)
+		peerId := conn.PeerInfo.PeerId
+
+		if joinpeer, ok := conn.joinPeerMap[peerId]; !ok {
+			conn.joinPeerMap[peerId] = &util.JoinPeerInfo{}
+			conn.joinPeerMap[peerId].PeerId = peerId
+			conn.joinPeerMap[peerId].DisplayName = *conn.PeerInfo.DisplayName
+			conn.joinPeerMap[peerId].PublicKeyPEM = conn.publicKeyPEM
+			conn.joinPeerMap[peerId].PublicKey = nil
+			conn.joinPeerMap[peerId].CachingMedia = make([]util.JoinPeerInfoCachingMedia, 0)
 		} else {
-			joinpeer.PeerId = conn.PeerOriginId()
+			joinpeer.PeerId = peerId
 			joinpeer.DisplayName = *conn.PeerInfo.DisplayName
 			joinpeer.PublicKeyPEM = conn.publicKeyPEM
 			joinpeer.PublicKey = nil
@@ -969,11 +971,11 @@ func (conn *Common) GetJoinPeers() *map[string]*util.JoinPeerInfo {
 	return &conn.joinPeerMap
 }
 
-func (conn *Common) GetJoinPeerPublicKey(peerOriginId string) *rsa.PublicKey {
+func (conn *Common) GetJoinPeerPublicKey(peerId string) *rsa.PublicKey {
 	conn.JoinPeersLock()
 	defer conn.JoinPeersUnlock()
 
-	var peerId string = conn.GetOriginId(peerOriginId)
+	//var peerId string = conn.GetOriginId(peerOriginId)
 
 	var joinpeer *util.JoinPeerInfo = nil
 	var ok bool = false

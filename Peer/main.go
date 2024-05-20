@@ -121,6 +121,7 @@ func main() {
 	util.Println(util.INFO, "Overlay ID :", *ovId)
 	util.Println(util.INFO, "gRPC Server port :", *grpcPort)
 	util.Println(util.INFO, "Config file path:", *configPath)
+	util.Println(util.INFO, "Peer index:", *peerIndex)
 	util.Println(util.INFO, "Use Grpc API:", *gapi)
 
 	util.Printf(util.INFO, "\n\nHP2P.Go start...\n\n")

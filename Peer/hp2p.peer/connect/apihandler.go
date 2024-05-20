@@ -19,7 +19,7 @@ type ApiHandler struct {
 
 func NewApiHandler(grpcPort int, peerIndex string, connect *Connect) *ApiHandler {
 	handler := new(ApiHandler)
-	handler.pbclient = hp2p_pb.NewPbClient(grpcPort, peerIndex)
+	handler.pbclient = hp2p_pb.NewPbClient(grpcPort, peerIndex, (*connect).PeerInfo().PeerId)
 	handler.recvChan = handler.pbclient.GetRecvChan()
 	handler.sendChan = handler.pbclient.GetSendChan()
 	handler.isClosed = false
@@ -395,7 +395,7 @@ func (handler *ApiHandler) handleJoinRequest(request *hp2p_pb.JoinRequest) *hp2p
 		conn.OverlayInfo().CrPolicy = hoq.Overlay[0].CrPolicy
 	}
 
-	if conn.CheckOwner(conn.PeerOriginId()) {
+	if /*conn.CheckOwner(conn.PeerOriginId()) &&*/ len(hoj.Overlay.Status.PeerInfoList) <= 0 {
 		conn.OverlayReport()
 	} else {
 		go conn.ConnectAfterJoin(&hoj.Overlay.Status.PeerInfoList, accessKey)
@@ -404,6 +404,8 @@ func (handler *ApiHandler) handleJoinRequest(request *hp2p_pb.JoinRequest) *hp2p
 	joinResponse := new(hp2p_pb.JoinResponse)
 	joinResponse.RspCode = util.RspCode_Success
 	joinResponse.OverlayId = conn.OverlayInfo().OverlayId
+	joinResponse.Title = *conn.OverlayInfo().ServiceInfo.Title
+	joinResponse.Description = *conn.OverlayInfo().ServiceInfo.Description
 	svcInfo := conn.OverlayInfo().ServiceInfo
 	joinResponse.StartDateTime = *svcInfo.StartDatetime
 	joinResponse.EndDateTime = *svcInfo.EndDatetime
@@ -715,7 +717,7 @@ func (handler *ApiHandler) handleSearchPeerRequest(request *hp2p_pb.SearchPeerRe
 
 	if peers != nil || len(*peers) > 0 {
 		for _, peer := range *peers {
-			if peer.PeerId != conn.PeerOriginId() {
+			if peer.PeerId != conn.PeerId() {
 				rslt.SearchPeer.PeerList = append(rslt.SearchPeer.PeerList, &hp2p_pb.Peer{
 					PeerId:      peer.PeerId,
 					DisplayName: peer.DisplayName,

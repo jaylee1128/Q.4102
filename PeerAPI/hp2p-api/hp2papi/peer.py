@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
+import queue
 import threading
 
 from .processHandler import ProcessHandler
@@ -36,6 +37,8 @@ class Peer:
 
     isConnect = False
     processHandler = None
+
+    streamQueue:queue.Queue = None
 
     readyEvent:threading.Event = None
     creationEvent:threading.Event = None
@@ -72,45 +75,77 @@ class Peer:
         self.leaveEvent = threading.Event()
         self.searchPeerEvent = threading.Event()
 
+        self.streamQueue = queue.Queue()
+
     def PeerStart(self, grpcPort: int, index: str, option: PeerOption) -> bool:
         self.processHandler.SetPeerOption(option)
         if not self.processHandler.PeerStart(self.peerId, grpcPort, index):
             return False
         return True
     
+    def GetStreamQueue(self) -> queue.Queue:
+        return self.streamQueue
+    
     def  PeerStop(self):
         self.processHandler.PeerStop()
 
     def WaitReady(self) -> bool:
-        return self.readyEvent.wait()
+        rslt =  self.readyEvent.wait()
+        self.readyEvent.clear()
+
+        return rslt
     
     def SetReady(self):
         self.isConnect = True
         self.readyEvent.set()
 
     def WaitCreation(self) -> bool:
-        return self.creationEvent.wait()
+        rslt = self.creationEvent.wait()
+        self.creationEvent.clear()
+
+        return rslt
     
     def WaitQuery(self) -> bool:
-        return self.queryEvent.wait()
+        rslt = self.queryEvent.wait()
+        self.queryEvent.clear()
+
+        return rslt
     
     def WaitJoin(self) -> bool:
-        return self.joinEvent.wait()
+        rslt = self.joinEvent.wait()
+        self.joinEvent.clear()
+
+        return rslt
     
     def WaitModification(self) -> bool:
-        return self.modificationEvent.wait()
+        rslt = self.modificationEvent.wait()
+        self.modificationEvent.clear()
+
+        return rslt
     
     def WaitRemoval(self) -> bool:
-        return self.removalEvent.wait()
+        rslt = self.removalEvent.wait()
+        self.removalEvent.clear()
+
+        return rslt
     
     def WaitSendData(self) -> bool:
-        return self.sendDataEvent.wait()
+        rslt = self.sendDataEvent.wait()
+        self.sendDataEvent.clear()
+
+        return rslt
     
     def WaitLeave(self) -> bool:
-        return self.leaveEvent.wait()
+        rslt = self.leaveEvent.wait()
+        self.leaveEvent.clear()
+
+        return rslt
 
     def WaitSearchPeer(self) -> bool:
-        return self.searchPeerEvent.wait()
+        rslt = self.searchPeerEvent.wait()
+        self.searchPeerEvent.clear()
+
+        return rslt
     
     def IsConnect(self) -> bool:
         return self.isConnect
@@ -247,6 +282,8 @@ class Peer:
         if res.rspCode == ResponseCode.Success.value:
             self.joinResponse.startDateTime = res.startDateTime
             self.joinResponse.endDateTime = res.endDateTime
+            self.joinResponse.title = res.title
+            self.joinResponse.description = res.description
             self.joinResponse.sourceList = res.sourceList
             
             if res.channelList and len(res.channelList) > 0:

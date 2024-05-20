@@ -901,8 +901,8 @@ func (self *WebrtcConnect) DisconnectFrom(peer *Peer) {
 
 	self.JoinPeerMux.Lock()
 	joinPeers := *self.GetJoinPeers()
-	if _, ok := joinPeers[peer.ToOriginId]; ok {
-		delete(joinPeers, peer.ToOriginId)
+	if _, ok := joinPeers[peer.ToPeerId]; ok {
+		delete(joinPeers, peer.ToPeerId)
 	}
 	self.JoinPeerMux.Unlock()
 
@@ -1073,6 +1073,7 @@ func (self *WebrtcConnect) checkBroadcastDataSeq(peerId string, recvSeq int) boo
 		if recvSeq > seq {
 			return true
 		} else {
+			self.peerDataSeqMap[peerId] = seq
 			return false
 		}
 	} else {
@@ -1230,9 +1231,9 @@ func (self *WebrtcConnect) SendData(channelId string, dataType string, data []by
 		ext.ChannelId = channelId
 		ext.MediaType = dataType
 		ext.Sequence = params.Peer.Sequence
-		ext.SourceId = self.PeerOriginId()
+		ext.SourceId = self.PeerId()
 
-		self.CachingMedia(&ext, &data, &sign, self.PeerOriginId())
+		self.CachingMedia(&ext, &data, &sign, self.PeerId())
 
 		extHeader = ext
 	} else if dataType == util.MediaTypeData {
@@ -1250,7 +1251,7 @@ func (self *WebrtcConnect) SendData(channelId string, dataType string, data []by
 	return util.RspCode_Success
 }
 
-func (self *WebrtcConnect) CachingMedia(header *util.BroadcastDataExtensionHeaderDataCache, media *[]byte, signMedia *[]byte, peerOriginId string) bool {
+func (self *WebrtcConnect) CachingMedia(header *util.BroadcastDataExtensionHeaderDataCache, media *[]byte, signMedia *[]byte, peerId string) bool {
 	self.JoinPeersLock()
 	defer self.JoinPeersUnlock()
 
@@ -1269,7 +1270,7 @@ func (self *WebrtcConnect) CachingMedia(header *util.BroadcastDataExtensionHeade
 	joinPeers := self.GetJoinPeers()
 
 	for _, peer := range *joinPeers {
-		if peer.PeerId == peerOriginId {
+		if peer.PeerId == peerId {
 			var find bool = false
 			for _, cachingMedia := range peer.CachingMedia {
 				if cachingMedia.ChannelId == header.ChannelId {
@@ -1303,12 +1304,12 @@ func (self *WebrtcConnect) GetCachingMedia(peerId string, channelId string) *uti
 	self.JoinPeersLock()
 	defer self.JoinPeersUnlock()
 
-	peerOriginId := self.GetOriginId(peerId)
+	//peerOriginId := self.GetOriginId(peerId)
 
 	joinPeers := self.GetJoinPeers()
 
 	for _, peer := range *joinPeers {
-		if peer.PeerId == peerOriginId {
+		if peer.PeerId == peerId {
 			for _, cachingMedia := range peer.CachingMedia {
 				if cachingMedia.ChannelId == channelId {
 					return &cachingMedia
@@ -1370,6 +1371,7 @@ func (self *WebrtcConnect) BroadcastData(params *util.BroadcastDataParams, extHe
 
 		util.Println(util.WORK, peer.ToPeerId, "send broadcastdata:", req)
 		peer.sendPPMessage(msg)
+		util.Println(util.WORK, peer.ToPeerId, "sended broadcastdata:", req)
 	}
 }
 
@@ -1677,7 +1679,7 @@ func (self *WebrtcConnect) sendLeaveNoti() {
 	extHeader.ChannelId = self.ControlChannelId
 	extHeader.MediaType = util.MediaTypeControl
 	extHeader.ControlType = util.ControlTypeLeave
-	extHeader.LeaverInfo.PeerId = self.PeerOriginId()
+	extHeader.LeaverInfo.PeerId = self.PeerId()
 	extHeader.LeaverInfo.DisplayName = *self.PeerInfo().DisplayName
 
 	payload := self.SignStruct(extHeader)
@@ -1815,7 +1817,7 @@ func (self *WebrtcConnect) ApplyTransmissionNoti(noti *util.BroadcastDataExtensi
 		if channellist != nil {
 			change.ChannelList = &channellist
 		}
-		util.PrintJson(util.INFO, "!!! SessionChangeCallback:", change)
+		util.PrintJson(util.WORK, "!!! SessionChangeCallback:", change)
 		self.SessionChangeCallback(&change)
 	}
 }
@@ -1868,7 +1870,7 @@ func (self *WebrtcConnect) ApplyOwnershipNoti(noti *util.BroadcastDataExtensionH
 		change := util.SessionChangeInfo{}
 		change.OverlayId = self.OverlayInfo().OverlayId
 		change.OwnerId = &noti.OwnerInfo.PeerId
-		util.PrintJson(util.INFO, "!!! SessionChangeCallback:", change)
+		util.PrintJson(util.WORK, "!!! SessionChangeCallback:", change)
 		self.SessionChangeCallback(&change)
 	}
 }
@@ -1946,7 +1948,7 @@ func (self *WebrtcConnect) ApplySessionInfoNoti(noti *util.BroadcastDataExtensio
 		change.Description = noti.SessionInfo.Description
 		change.StartDateTime = noti.SessionInfo.StartDateTime
 		change.EndDateTime = noti.SessionInfo.EndDateTime
-		util.PrintJson(util.INFO, "!!! SessionChangeCallback:", change)
+		util.PrintJson(util.WORK, "!!! SessionChangeCallback:", change)
 		self.SessionChangeCallback(&change)
 	}
 }
@@ -2017,8 +2019,8 @@ func (self *WebrtcConnect) ApplyExpulsionNoti(peers *[]string, notiToApp bool) {
 					self.DisconnectFrom(peer)
 
 					if self.PeerChangeCallback != nil {
-						util.Println(util.INFO, "PeerChangeCallback - Leave !!!!!!!!!!!!!", peer.ToOriginId)
-						self.PeerChangeCallback(self.OverlayInfo().OverlayId, peer.ToOriginId, *peer.Info.PeerInfo.DisplayName, true)
+						util.Println(util.WORK, "PeerChangeCallback - Leave !!!!!!!!!!!!!", peer.ToPeerId)
+						self.PeerChangeCallback(self.OverlayInfo().OverlayId, peer.ToPeerId, *peer.Info.PeerInfo.DisplayName, true)
 					}
 					break
 				}
@@ -2028,7 +2030,7 @@ func (self *WebrtcConnect) ApplyExpulsionNoti(peers *[]string, notiToApp bool) {
 
 	if notiToApp && expelMe {
 		if self.ExpulsionCallback != nil {
-			util.Println(util.INFO, "!!! ExpulsionCallback:", self.OverlayInfo().OverlayId, self.PeerOriginId())
+			util.Println(util.WORK, "!!! ExpulsionCallback:", self.OverlayInfo().OverlayId, self.PeerOriginId())
 			self.ExpulsionCallback(self.OverlayInfo().OverlayId, self.PeerOriginId())
 		}
 	}
@@ -2070,7 +2072,7 @@ func (self *WebrtcConnect) ApplyTerminationNoti(notiToApp bool) {
 
 	if notiToApp {
 		if self.SessionTerminationCallback != nil {
-			util.Println(util.INFO, "!!! SessionTerminationCallback:", self.OverlayInfo().OverlayId)
+			util.Println(util.WORK, "!!! SessionTerminationCallback:", self.OverlayInfo().OverlayId)
 			self.SessionTerminationCallback(self.OverlayInfo().OverlayId, self.PeerOriginId())
 		}
 	}

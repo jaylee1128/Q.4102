@@ -107,6 +107,7 @@ class GrpcMsgType(int, Enum):
     Expulsion = 13
     SendData = 14
     Data = 15
+    NotMine = 16
 
 @unique
 class DataType(Enum):
@@ -499,6 +500,8 @@ class JoinRequest(Request):
 
 @dataclass
 class JoinResponse(Response):
+    title: str = None
+    description: str = None
     startDateTime: str = None #YYYYMMDDHHmmSS
     endDateTime: str = None #YYYYMMDDHHmmSS
     sourceList: List[str] = None

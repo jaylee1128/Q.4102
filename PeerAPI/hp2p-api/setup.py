@@ -28,7 +28,7 @@ with open("../README.md", "r") as fh:
 
 setup(
     name='hp2p-api',
-    version='1.0.5',
+    version='1.0.9',
     description='An API for HP2P Peer',
     long_description=long_description,
     long_description_content_type="text/markdown",
